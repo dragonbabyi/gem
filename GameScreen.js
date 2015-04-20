@@ -10,10 +10,11 @@ import ui.resource.Image as Image;
 import ui.TextView as TextView;
 import ui.ViewPool as ViewPool;
 import src.gameplay as Gameplay;
+// import ui.GestureView as GestureView;
+import event.input.drag as Drag;
 
 /* Some game constants.
  */
-
 var purpleGem = new Image({url: "resources/images/gems/gem_01.png"}),
     orangeGem = new Image({url: "resources/images/gems/gem_02.png"}),
 	blueGem   = new Image({url: "resources/images/gems/gem_03.png"}),
@@ -22,6 +23,15 @@ var purpleGem = new Image({url: "resources/images/gems/gem_01.png"}),
 	gemImg = [purpleGem, orangeGem, blueGem, redGem, greenGem];
 
 var IMG_SIZE = 96;
+var matrix = [];
+var dimH = 7;
+var dimW = 6;
+for (var i = 0; i < dimH; i++) {
+	var line = [];
+	matrix.push(line);
+};
+var x_offset = 0;
+var y_offset = 290;
 
 var score = 0,
 		high_score = 1,
@@ -90,10 +100,10 @@ exports = Class(View, function (supr) {
 		this.style.width = 576;
 		this.style.height = 1024;
 
-		// // ViewPool
+		// // // ViewPool
 		this.gemViewPool = new ViewPool({
 			ctor: ImageView,
-			initCount: 36,
+			initCount: dimH * dimW,
 			initOpts: {
 				parent: this,
 				x: 0,
@@ -104,27 +114,26 @@ exports = Class(View, function (supr) {
 			}
 		});
 
-		var x_offset = 0;
-		var y_offset = 290;
-
 		// create random gems
-		for (var i = 0; i < 6; i++) {
-			for (var j = 0; j < 6; j++) {
+		for (var j = 0; j < dimH; j++) {
+			for (var i = 0; i < dimW; i++) {
 				var gem = this.gemViewPool.obtainView();
+				var index = Math.round(Math.random() * 4.0);
+				var tagx = index.toString();
+				matrix[j].push(gem);
 				gem.updateOpts({
 					superview: this.backgroundView,
 					x: x_offset + i * IMG_SIZE,
 					y: y_offset + j * IMG_SIZE,
+					tag: tagx,
 					width: IMG_SIZE,
 					height: IMG_SIZE,
-					image: gemImg[Math.round(Math.random() * 4.0)]
+					image: gemImg[index]
 				});
+				var animator = animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + j * IMG_SIZE}, 500, animate.easeIn);
+				console.log("animate 1111...\n");
 			}
 		}
-		// animate(gem).now().then(bind(this, function() {
-		// 	// 
-		// 	// this.imageViewPool.releaseView(view);
-		// }));
 	};
 });
 
@@ -137,23 +146,19 @@ exports = Class(View, function (supr) {
 function start_game_flow () {
 	var that = this;
 
-	// animate(that._scoreboard).wait(1000)
-	// 	.then(function () {
-	// 		that._scoreboard.setText(text.READY);
-	// 	}).wait(1500).then(function () {
-	// 		that._scoreboard.setText(text.SET);
-	// 	}).wait(1500).then(function () {
-	// 		that._scoreboard.setText(text.GO);
-	// 		//start game ...
-	// 		game_on = true;
-	// 		play_game.call(that);
-	// 		console.log("play game...\n");
-	// 	});
-
-		// //start game ...
-		// game_on = true;
-		// play_game.call(that);
-		// console.log("play game...\n");
+	animate(that._scoreboard).wait(1000)
+		.then(function () {
+			that._scoreboard.setText(text.READY);
+		}).wait(500).then(function () {
+			that._scoreboard.setText(text.SET);
+		}).wait(500).then(function () {
+			that._scoreboard.setText(text.GO);
+		}).wait(100).then(function () {
+			//start game ...
+			game_on = true;
+			console.log("play game...\n");
+			play_game.call(that);
+		});
 }
 
 /* With everything in place, the actual game play is quite simple.
@@ -162,15 +167,171 @@ function start_game_flow () {
  * stop calling the moles and proceed to the end game.
  */
 
-// function play_game () {
+function play_game () {
+	var that = this;
+	this._scoreboard.setText(score.toString());
+	tick.call(that);
 
-// }
+}
+
+function addNewGems (i, j, count, dir) {
+	if (dir === "horizontal") {
+		// generate new gems at (0, j - count + 1) ~ (0, j)
+		for (var m = j - count + 1; m <= j; m++) {
+			var newgem = this.gemViewPool.obtainView();
+			var index = Math.round(Math.random() * 4.0);
+			var tagx = index.toString();
+			matrix[0][m] = newgem;
+			newgem.updateOpts({
+				superview: this.backgroundView,
+				x: x_offset + m * IMG_SIZE,
+				y: y_offset,
+				tag: tagx,
+				width: IMG_SIZE,
+				height: IMG_SIZE,
+				image: gemImg[index]
+			});
+			var animator = animate(newgem).now({y: 0}, 0, animate.easeIn).then({y: y_offset}, 500, animate.easeIn);
+			console.log(newgem);
+		};
+	}
+	if (dir === "vertical") {
+		// generate new gems at (0, j) ~ (count - 1, j)
+	}
+}
+
+/*
+ * gems fall to fill any gaps
+ * add new gems at the top
+ */
+function fillHole (i, j, count, dir) {
+	var that = this;
+	console.log("Fill holes...\n");
+	var animator;
+	// update the matrix and gems
+	if (dir === "horizontal") {
+		// update (0~i, j - count + 1) ~ (0~i, j), move down one step
+		for (var row = i-1; row >= 0; row--) {
+			for (var col = j; col >= j - count + 1; col--) {
+				var theGem = matrix[row][col];
+				// update the gem
+				var gemy = theGem.style.y;
+				theGem.updateOpts({
+					y: gemy + IMG_SIZE,
+				});
+				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: gemy + IMG_SIZE}, 1550, animate.easeIn).wait(500);
+				matrix[row + 1][col] = theGem;
+			};
+		};
+
+		// addNewGems(i, j, count, dir).bind(that);
+	}
+	if (dir === "vertical") {
+		//
+
+	}
+}
+
+/*
+ * check vertical connected gems and remove
+ * add new gems and fill the holes
+ * check horizontal connected gems and remove
+ * add new gems and fill the holes
+ * keep check connected gems until no match exist
+ */
+
+function tick () {
+	var count = 1;
+	var tempArray = [];
+	console.log("Tick...\n");
+	var checkflag = false;
+	var viewpool = this.gemViewPool;
+	var animator;
+	// scan the matrix
+	// horizontal
+	for (var i = 0; i < dimH; i++) {
+		var currGem = matrix[i][0];
+		count = 1;
+		tempArray = [];
+		tempArray.push(currGem);
+		for (var j = 1; j < dimW; j++) {
+			if (currGem.tag === matrix[i][j].tag) {
+				count++;
+				tempArray.push(matrix[i][j]);
+			}
+			if (currGem.tag !== matrix[i][j].tag || j == dimW - 1) {
+				if (count >= 3) {
+					tempArray.forEach(function (view) {
+						animator = animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 1550)
+						.then(bind(this, function() {
+							viewpool.releaseView(view);
+						}));
+					});
+					checkflag = true;
+					//fill the holes
+					//(i-1, j) is the last matching one, horizontally fill
+					// fillHole(i, j-1, count, "horizontal").bind(this);
+					if (currGem.tag !== matrix[i][j].tag) {
+						fillHole.call(this, i, j - 1, count, "horizontal");
+					} else {
+						fillHole.call(this, i, j, count, "horizontal");
+					}
+					break;
+				}
+				// set the currGem to the new gem
+				currGem = matrix[i][j];
+				count = 1;
+				// reset the temp array and push the new gem
+				tempArray = [];
+				tempArray.push(currGem);
+			}
+		}
+	}
+
+	// vertical
+	// for (var j = 0; j < dimW; j++) {
+	// 	var currGem = matrix[0][j];
+	// 	tempArray.push(currGem);
+	// 	for (var i = 1; i < dimH; i++) {
+	// 		if (currGem.tag === matrix[i][j].tag) {
+	// 			count++;
+	// 			tempArray.push(matrix[i][j]);
+	// 		}
+	// 		if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
+	// 			if (count >= 3) {
+	// 				tempArray.forEach(function (view) {
+	// 					animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 4500)
+	// 					.then(bind(this, function() {
+	// 						viewpool.releaseView(view);
+	// 					}));
+	// 				});
+	// 				// fill the holes
+	// 				// (i-1, j) is the last matching one
+	// 				fillHole(i-1, j, count, "vertical");
+	// 			}
+	// 			currGem = matrix[i][j];
+	// 			count = 1;
+	// 			tempArray = [];
+	// 			tempArray.push(currGem);
+	// 		}
+	// 	}
+	// }
+
+
+	if (checkflag) {
+		while(animator.hasFrames()) {
+			// console.log("waiting...");
+		}
+		console.log("tick again...");
+		tick.call(this);
+	}
+}
 
 /* Check for high-score and play the ending animation.
  * Add a click-handler to the screen to return to the title
  * screen so we may play again.
  */
-// function end_game_flow () {
+function end_game_flow () {
 	// var isHighScore = (score > high_score),
 	// 		end_msg = get_end_message(score, isHighScore);
 
@@ -199,18 +360,18 @@ function start_game_flow () {
 	// this._scoreboard.setText(end_msg);
 
 	// //slight delay before allowing a tap reset
-	// setTimeout(emit_endgame_event.bind(this), 2000);
+	setTimeout(emit_endgame_event.bind(this), 2000);
 	// console.log('end game flow.. \n');
-// }
+}
 
 /* Tell the main app to switch back to the title screen.
  */
-// function emit_endgame_event () {
-// 	this.once('InputSelect', function () {
-// 		this.emit('gamescreen:end');
-// 		// reset_game.call(this);
-// 	});
-// }
+function emit_endgame_event () {
+	this.once('InputSelect', function () {
+		this.emit('gamescreen:end');
+		// reset_game.call(this);
+	});
+}
 
 /* Reset game counters and assets.
  */
@@ -252,16 +413,16 @@ function start_game_flow () {
 // 	return (end_msg += text.END_MSG_END);
 // }
 
-// var localized_strings = {
-// 	en: {
-// 		READY: "Ready ...",
-// 		SET: "Set ...",
-// 		GO: "GO!",
-// 		END_MSG_START: "You whacked",
-// 		END_MSG_END: "Tap to play again",
-// 		HIGH_SCORE: "That's a new high score!"
-// 	}
-// };
+var localized_strings = {
+	en: {
+		READY: "Ready ...",
+		SET: "Set ...",
+		GO: "GO!",
+		END_MSG_START: "You whacked",
+		END_MSG_END: "Tap to play again",
+		HIGH_SCORE: "That's a new high score!"
+	}
+};
 
 // localized_strings['en'].taunts = [
 // 	"Welcome to Loserville, population: you.", //max length
@@ -277,4 +438,4 @@ function start_game_flow () {
 // ];
 
 // //object of strings used in game
-// var text = localized_strings[lang.toLowerCase()];
+var text = localized_strings[lang.toLowerCase()];

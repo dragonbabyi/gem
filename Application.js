@@ -54,10 +54,10 @@ exports = Class(GC.Application, function () {
     /* When the game screen has signalled that the game is over,
      * show the title screen so that the user may play the game again.
      */
-    // gamescreen.on('gamescreen:end', function () {
-    //   sound.stop('levelmusic');
-    //   rootView.pop();
-    // });
+      gamescreen.on('gamescreen:end', function () {
+      // sound.stop('levelmusic');
+      rootView.pop();
+    });
   };
 
   /* Executed after the asset resources have been loaded.
