@@ -161,10 +161,7 @@ function start_game_flow () {
 		});
 }
 
-/* With everything in place, the actual game play is quite simple.
- * Summon a non-active mole every n seconds. If it's hit, an event
- * handler on the molehill updates the score. After a set timeout,
- * stop calling the moles and proceed to the end game.
+/*
  */
 
 function play_game () {
@@ -175,10 +172,17 @@ function play_game () {
 }
 
 function addNewGems (i, j, count, dir) {
+	console.log("add new gem...\n");
 	if (dir === "horizontal") {
 		// generate new gems at (0, j - count + 1) ~ (0, j)
 		for (var m = j - count + 1; m <= j; m++) {
-			var newgem = this.gemViewPool.obtainView();
+			var newgem;
+			try{
+				newgem = this.gemViewPool.obtainView();
+			} catch(err) {
+				console.log(this);
+			}
+			// var newgem = this.gemViewPool.obtainView();
 			var index = Math.round(Math.random() * 4.0);
 			var tagx = index.toString();
 			matrix[0][m] = newgem;
@@ -186,17 +190,36 @@ function addNewGems (i, j, count, dir) {
 				superview: this.backgroundView,
 				x: x_offset + m * IMG_SIZE,
 				y: y_offset,
+				opacity: 1.0,
+				scale: 1.0,
 				tag: tagx,
 				width: IMG_SIZE,
 				height: IMG_SIZE,
 				image: gemImg[index]
 			});
-			var animator = animate(newgem).now({y: 0}, 0, animate.easeIn).then({y: y_offset}, 500, animate.easeIn);
-			console.log(newgem);
+			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset}, 900, animate.easeIn);
 		};
 	}
 	if (dir === "vertical") {
 		// generate new gems at (0, j) ~ (count - 1, j)
+		for (var m = count - 1; m >= 0; m--) {
+			var newgem = this.gemViewPool.obtainView();
+			var index = Math.round(Math.random() * 4.0);
+			var tagx = index.toString();
+			matrix[m][j] = newgem;
+			newgem.updateOpts({
+				superview: this.backgroundView,
+				x: x_offset + j * IMG_SIZE,
+				y: y_offset + m * IMG_SIZE,
+				opacity: 1.0,
+				scale: 1.0,
+				tag: tagx,
+				width: IMG_SIZE,
+				height: IMG_SIZE,
+				image: gemImg[index]
+			});
+			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset + m * IMG_SIZE}, 900, animate.easeIn);
+		}
 	}
 }
 
@@ -205,31 +228,38 @@ function addNewGems (i, j, count, dir) {
  * add new gems at the top
  */
 function fillHole (i, j, count, dir) {
-	var that = this;
+	// var that = this;
 	console.log("Fill holes...\n");
 	var animator;
 	// update the matrix and gems
 	if (dir === "horizontal") {
 		// update (0~i, j - count + 1) ~ (0~i, j), move down one step
-		for (var row = i-1; row >= 0; row--) {
+		for (var row = i - 1; row >= 0; row--) {
 			for (var col = j; col >= j - count + 1; col--) {
 				var theGem = matrix[row][col];
 				// update the gem
 				var gemy = theGem.style.y;
 				theGem.updateOpts({
-					y: gemy + IMG_SIZE,
+					y: gemy + IMG_SIZE
 				});
-				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: gemy + IMG_SIZE}, 1550, animate.easeIn).wait(500);
+				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 750, animate.easeIn).wait(500);
 				matrix[row + 1][col] = theGem;
-			};
-		};
-
-		// addNewGems(i, j, count, dir).bind(that);
+			}
+		}
 	}
 	if (dir === "vertical") {
-		//
-
+		// update (0, j) ~ (i - count, j)
+		for (var row = i - count; row >= 0; row--) {
+			var theGem = matrix[row][j];
+			var gemy = theGem.style.y;
+			theGem.updateOpts({
+				y: gemy + IMG_SIZE * count
+			});
+			animator = animate(theGem).now({y: gemy}, 0, animate.easeIn)
+			.then({y: theGem.style.y}, 750, animate.easeIn).wait(500);
+		}
 	}
+	addNewGems.call(this, i, j, count, dir);
 }
 
 /*
@@ -241,6 +271,7 @@ function fillHole (i, j, count, dir) {
  */
 
 function tick () {
+	var that = this;
 	var count = 1;
 	var tempArray = [];
 	console.log("Tick...\n");
@@ -262,21 +293,19 @@ function tick () {
 			if (currGem.tag !== matrix[i][j].tag || j == dimW - 1) {
 				if (count >= 3) {
 					tempArray.forEach(function (view) {
-						animator = animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 1550)
+						animator = animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 550)
 						.then(bind(this, function() {
 							viewpool.releaseView(view);
 						}));
 					});
 					checkflag = true;
 					//fill the holes
-					//(i-1, j) is the last matching one, horizontally fill
-					// fillHole(i, j-1, count, "horizontal").bind(this);
 					if (currGem.tag !== matrix[i][j].tag) {
 						fillHole.call(this, i, j - 1, count, "horizontal");
 					} else {
 						fillHole.call(this, i, j, count, "horizontal");
 					}
-					break;
+					// break;
 				}
 				// set the currGem to the new gem
 				currGem = matrix[i][j];
@@ -289,41 +318,46 @@ function tick () {
 	}
 
 	// vertical
-	// for (var j = 0; j < dimW; j++) {
-	// 	var currGem = matrix[0][j];
-	// 	tempArray.push(currGem);
-	// 	for (var i = 1; i < dimH; i++) {
-	// 		if (currGem.tag === matrix[i][j].tag) {
-	// 			count++;
-	// 			tempArray.push(matrix[i][j]);
-	// 		}
-	// 		if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
-	// 			if (count >= 3) {
-	// 				tempArray.forEach(function (view) {
-	// 					animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 4500)
-	// 					.then(bind(this, function() {
-	// 						viewpool.releaseView(view);
-	// 					}));
-	// 				});
-	// 				// fill the holes
-	// 				// (i-1, j) is the last matching one
-	// 				fillHole(i-1, j, count, "vertical");
-	// 			}
-	// 			currGem = matrix[i][j];
-	// 			count = 1;
-	// 			tempArray = [];
-	// 			tempArray.push(currGem);
-	// 		}
-	// 	}
-	// }
-
+	for (var j = 0; j < dimW; j++) {
+		var currGem = matrix[0][j];
+		count = 1;
+		tempArray = [];
+		tempArray.push(currGem);
+		for (var i = 1; i < dimH; i++) {
+			if (currGem.tag === matrix[i][j].tag) {
+				count++;
+				tempArray.push(matrix[i][j]);
+			}
+			if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
+				if (count >= 3) {
+					tempArray.forEach(function (view) {
+						animate(view).now({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 550)
+						.then(bind(this, function() {
+							viewpool.releaseView(view);
+						}));
+					});
+					checkflag = true;
+					// fill the holes
+					if (currGem.tag !== matrix[i][j].tag) {
+						fillHole.call(this, i - 1, j, count, "vertical");
+					} else {
+						fillHole.call(this, i, j, count, "vertical");
+					}
+					// break;
+				}
+				currGem = matrix[i][j];
+				count = 1;
+				tempArray = [];
+				tempArray.push(currGem);
+			}
+		}
+	}
 
 	if (checkflag) {
-		while(animator.hasFrames()) {
-			// console.log("waiting...");
-		}
-		console.log("tick again...");
-		tick.call(this);
+		setTimeout(function(){
+			console.log("tick again...");
+				tick.call(that);
+			}, 10000);
 	}
 }
 
