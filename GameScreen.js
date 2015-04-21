@@ -9,9 +9,7 @@ import ui.ImageView as ImageView;
 import ui.resource.Image as Image;
 import ui.TextView as TextView;
 import ui.ViewPool as ViewPool;
-import src.gameplay as Gameplay;
-// import ui.GestureView as GestureView;
-import event.input.drag as Drag;
+import event.input.InputEvent as InputEvent;
 
 /* Some game constants.
  */
@@ -115,23 +113,55 @@ exports = Class(View, function (supr) {
 		});
 
 		// create random gems
-		for (var j = 0; j < dimH; j++) {
+		for (var h = 0; h < dimH; h++) {
 			for (var i = 0; i < dimW; i++) {
 				var gem = this.gemViewPool.obtainView();
 				var index = Math.round(Math.random() * 4.0);
 				var tagx = index.toString();
-				matrix[j].push(gem);
+				matrix[h].push(gem);
+				var animator = animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + h * IMG_SIZE}, 500, animate.easeIn);
 				gem.updateOpts({
 					superview: this.backgroundView,
 					x: x_offset + i * IMG_SIZE,
-					y: y_offset + j * IMG_SIZE,
+					y: y_offset + h * IMG_SIZE,
 					tag: tagx,
 					width: IMG_SIZE,
 					height: IMG_SIZE,
 					image: gemImg[index]
 				});
-				var animator = animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + j * IMG_SIZE}, 500, animate.easeIn);
-				console.log("animate 1111...\n");
+				// input select
+
+				var flag = false;   // no selection
+				var moveonceflag = false;
+
+				gem.on("InputStart", function (event, pt) {
+					// only select new if last select ended
+					if (!flag) {
+						flag = true;
+					}
+					console.log(this.getTag() + "   selectedddd");
+				});
+				gem.on("InputMove", function (evt, pt) {
+					// this->
+					var pos = {x: this.style.x, y: this.style.y};
+					// compute the matrix index from pos
+					var row = Math.round((pos.x - x_offset) / IMG_SIZE);
+					var col = Math.round((pos.y - y_offset) / IMG_SIZE);
+					// only start draw if new selection picked
+					if (flag && !moveonceflag) {
+						if (Math.abs(pt.x - pos.x) > 24 || Math.abs(pt.y - pos.y) > 24) {
+							var dx = pt.x - pos.x;
+							var dy = pt.y - pos.y;
+							///// swap /////
+							swapGems(dx, dy, row, col);
+							moveonceflag = true;
+						}
+					}
+				});
+				gem.on("InputSelect", function (event, pt){
+					flag = false;
+					moveonceflag = false;
+				});
 			}
 		}
 	};
@@ -171,6 +201,58 @@ function play_game () {
 
 }
 
+function swap (thisGem, nextGem) {
+	var thisopts = {
+		x: nextGem.style.x,
+		y: nextGem.style.y
+	}
+	var thatopts = {
+		x: thisGem.style.x,
+		y: thisGem.style.y
+	}
+	console.log("swap");
+	animate(thisGem).now({x: nextGem.style.x, y: nextGem.style.y}, 300, animate.easeIn);
+	animate(nextGem).now({x: thisGem.style.x, y: thisGem.style.y}, 300, animate.easeIn);
+	thisgem.updateOpts(thisopts);
+	thatgem.updateOpts(thatopts);
+
+	// todo: check valid swap
+	// if not, swap back
+}
+
+function swapGems (dx, dy, i, j) {
+	console.log("swapppp");
+	var direction;
+	var tanTheta = dx / dy;
+	if (Math.abs(dy) < 0.1 || Math.abs(tanTheta) < 1) {
+		if (dx > 0) {
+			direction = [0, 1];
+		} else {
+			direction = [0, -1];
+		}
+	}
+	else if (dy > 0) {
+		direction = [-1, 0];
+	}
+	else {
+		direction = [1, 0];
+	}
+
+	var thisGem = matrix[i][j];
+	var nextX = direction[0] + i;
+	var nextY = direction[1] + j;
+	if (nextX >= 0 && nextX < dimW && nextY >= 0 && nextY < dimH) {
+		console.log("valid swapingggggggg");
+		var nextGem = matrix[nextX][nextY];
+		// animate swap
+		swap(thisGem, nextGem);
+		// update matrix
+		var temp = thisGem;
+		matrix[i][j] = nextGem;
+		matrix[nextX][nextY] = temp;
+	}
+}
+
 function addNewGems (i, j, count, dir) {
 	console.log("add new gem...\n");
 	if (dir === "horizontal") {
@@ -197,7 +279,7 @@ function addNewGems (i, j, count, dir) {
 				height: IMG_SIZE,
 				image: gemImg[index]
 			});
-			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset}, 900, animate.easeIn);
+			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset}, 1900, animate.easeIn);
 		};
 	}
 	if (dir === "vertical") {
@@ -218,7 +300,7 @@ function addNewGems (i, j, count, dir) {
 				height: IMG_SIZE,
 				image: gemImg[index]
 			});
-			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset + m * IMG_SIZE}, 900, animate.easeIn);
+			var animator = animate(newgem).now({y: 0}, 0).then({y: y_offset + m * IMG_SIZE}, 300, animate.easeIn);
 		}
 	}
 }
@@ -357,7 +439,7 @@ function tick () {
 		setTimeout(function(){
 			console.log("tick again...");
 				tick.call(that);
-			}, 10000);
+			}, 750);
 	}
 }
 
