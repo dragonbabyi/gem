@@ -30,6 +30,8 @@ for (var i = 0; i < dimH; i++) {
 };
 var x_offset = 0;
 var y_offset = 290;
+var flag = false;   // no selection
+var moveonceflag = false;
 
 var score = 0,
 		high_score = 1,
@@ -130,10 +132,6 @@ exports = Class(View, function (supr) {
 					image: gemImg[index]
 				});
 				// input select
-
-				var flag = false;   // no selection
-				var moveonceflag = false;
-
 				gem.on("InputStart", function (event, pt) {
 					// only select new if last select ended
 					if (!flag) {
@@ -141,17 +139,21 @@ exports = Class(View, function (supr) {
 					}
 					console.log(this.getTag() + "   selectedddd");
 				});
-				gem.on("InputMove", function (evt, pt) {
-					// this->
+				gem.on("InputMove", function (event, pt) {
 					var pos = {x: this.style.x, y: this.style.y};
 					// compute the matrix index from pos
 					var col = Math.round((pos.x - x_offset) / IMG_SIZE);
 					var row = Math.round((pos.y - y_offset) / IMG_SIZE);
 					// only start draw if new selection picked
+					// pt is a point relative to the top-left corner of the view.
+					// but the view(gem) is changing when mouse moves!!!!!!
+					// pt go from 0 ~ IMG_SIZE then start from 0 again when cross gems
+					// compare to the view center -> IMG_SIZE / 2
 					if (flag && !moveonceflag) {
-						if (Math.abs(pt.x - pos.x) > 24 || Math.abs(pt.y - pos.y) > 24) {
-							var dx = pt.x - pos.x;
-							var dy = pt.y - pos.y;
+						var dx = pt.x - IMG_SIZE / 2;
+						var dy = pt.y - IMG_SIZE / 2;
+						console.log(this.getTag() + "   movingggg");
+						if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
 							///// swap /////
 							swapGems(dx, dy, row, col);
 							moveonceflag = true;
@@ -199,6 +201,7 @@ function play_game () {
 	this._scoreboard.setText(score.toString());
 	// tick.call(that);
 	var checkflag = true;
+
 	while (checkflag) {
 		setTimeout(function(){
 			console.log("tick again...");
@@ -212,22 +215,14 @@ function swap (thisGem, nextGem) {
 	var thisopts = {
 		x: thisGem.style.x,
 		y: thisGem.style.y
-	}
+	};
 	var nextopts = {
 		x: nextGem.style.x,
 		y: nextGem.style.y
-	}
-
-	console.log("swap");
-	animate(thisGem).now({x: nextopts.x, y: nextopts.y}, 300, animate.easeIn);
-	// animate(thisGem).now({x: nextGem.style.x, y: nextGem.style.y}, 300, animate.easeIn);
-	animate(nextGem).now({x: thisopts.x, y: thisopts.y}, 300, animate.easeIn);
-	// animate(nextGem).now({x: thisGem.style.x, y: thisGem.style.y}, 300, animate.easeIn);
-	// thisgem.updateOpts(thisopts);
-	// thatgem.updateOpts(thatopts);
+	};
 
 	// check valid swap
-	var checkflag = tick.call(that);
+	var checkflag = true;
 	// if not, swap back
 	if (!checkflag) {
 		console.log("invalid, swap back...");
@@ -235,30 +230,41 @@ function swap (thisGem, nextGem) {
 		animate(nextGem).now({x: nextopts.x, y: nextopts.y}, 300, animate.easeIn);
 	} else {
 		// update
-		thisgem.updateOpts(nextopts);
-		thatgem.updateOpts(thisopts);
+		// while(animGroup.isActive()) {
+		// }
+		// console.log(animGroup.isActive());
+		thisGem.updateOpts(nextopts);
+		nextGem.updateOpts(thisopts);
 	}
+
+	console.log("swap");
+	var animGroup = animate.getGroup('Swap');
+	animate(thisGem, 'Swap').now({x: thisopts.x + IMG_SIZE / 10, y: thisopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 10).then({x: nextopts.x, y: nextopts.y, scale: 1.0, opacity: 1.0}, 1000, animate.easeInQuart);
+	animate(nextGem, 'Swap').now({x: nextopts.x + IMG_SIZE / 10, y: nextopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 10).then({x: thisopts.x, y: thisopts.y, scale: 1.0, opacity: 1.0}, 1000, animate.easeInQuart);
 
 	return checkflag;
 }
 
 function swapGems (dx, dy, i, j) {
-	console.log("swapppp");
+	console.log("swapGems...");
 	var direction;
-	var tanTheta = dx / dy;
-	if (Math.abs(dy) < 0.1 || Math.abs(tanTheta) < 1) {
-		if (dx > 0) {
-			direction = [0, 1];
+	var tanTheta = dy / dx;
+	// console.log(dx, dy);
+	// check direction
+	if (Math.abs(dx) < 0.1 || Math.abs(tanTheta) > 1) {
+		if (dy > 0) {
+			direction = [1, 0];
 		} else {
-			direction = [0, -1];
+			direction = [-1, 0];
 		}
 	}
-	else if (dy > 0) {
-		direction = [-1, 0];
+	else if (dx >= 0.1) {
+		direction = [0, 1];
 	}
 	else {
-		direction = [1, 0];
+		direction = [0, -1];
 	}
+	// console.log(direction);
 
 	var thisGem = matrix[i][j];
 	var nextX = direction[0] + i;
@@ -282,11 +288,11 @@ function addNewGems (i, j, count, dir) {
 		// generate new gems at (0, j - count + 1) ~ (0, j)
 		for (var m = j - count + 1; m <= j; m++) {
 			var newgem;
-			try{
-				newgem = this.gemViewPool.obtainView();
-			} catch(err) {
-				console.log(this);
-			}
+			// try{
+			newgem = this.gemViewPool.obtainView();
+			// } catch(err) {
+			// 	console.log(this);
+			// }
 			// var newgem = this.gemViewPool.obtainView();
 			var index = Math.round(Math.random() * 4.0);
 			var tagx = index.toString();
@@ -390,7 +396,8 @@ function tick () {
 		count = 1;
 		tempArray = [];
 		tempArray.push(currGem);
-		for (var j = 1; j < dimW; j++) {
+		// no need to scan the last two columns
+		for (var j = 1; j < dimW - 2; j++) {
 			if (currGem.tag === matrix[i][j].tag) {
 				count++;
 				tempArray.push(matrix[i][j]);
@@ -428,7 +435,7 @@ function tick () {
 		count = 1;
 		tempArray = [];
 		tempArray.push(currGem);
-		for (var i = 1; i < dimH; i++) {
+		for (var i = 1; i < dimH - 2; i++) {
 			if (currGem.tag === matrix[i][j].tag) {
 				count++;
 				tempArray.push(matrix[i][j]);
