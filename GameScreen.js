@@ -145,8 +145,8 @@ exports = Class(View, function (supr) {
 					// this->
 					var pos = {x: this.style.x, y: this.style.y};
 					// compute the matrix index from pos
-					var row = Math.round((pos.x - x_offset) / IMG_SIZE);
-					var col = Math.round((pos.y - y_offset) / IMG_SIZE);
+					var col = Math.round((pos.x - x_offset) / IMG_SIZE);
+					var row = Math.round((pos.y - y_offset) / IMG_SIZE);
 					// only start draw if new selection picked
 					if (flag && !moveonceflag) {
 						if (Math.abs(pt.x - pos.x) > 24 || Math.abs(pt.y - pos.y) > 24) {
@@ -197,27 +197,49 @@ function start_game_flow () {
 function play_game () {
 	var that = this;
 	this._scoreboard.setText(score.toString());
-	tick.call(that);
-
+	// tick.call(that);
+	var checkflag = true;
+	while (checkflag) {
+		setTimeout(function(){
+			console.log("tick again...");
+			checkflag = tick.call(that);
+			}, 750);
+	}
 }
 
 function swap (thisGem, nextGem) {
+	// make a copy of the positions
 	var thisopts = {
-		x: nextGem.style.x,
-		y: nextGem.style.y
-	}
-	var thatopts = {
 		x: thisGem.style.x,
 		y: thisGem.style.y
 	}
-	console.log("swap");
-	animate(thisGem).now({x: nextGem.style.x, y: nextGem.style.y}, 300, animate.easeIn);
-	animate(nextGem).now({x: thisGem.style.x, y: thisGem.style.y}, 300, animate.easeIn);
-	thisgem.updateOpts(thisopts);
-	thatgem.updateOpts(thatopts);
+	var nextopts = {
+		x: nextGem.style.x,
+		y: nextGem.style.y
+	}
 
-	// todo: check valid swap
+	console.log("swap");
+	animate(thisGem).now({x: nextopts.x, y: nextopts.y}, 300, animate.easeIn);
+	// animate(thisGem).now({x: nextGem.style.x, y: nextGem.style.y}, 300, animate.easeIn);
+	animate(nextGem).now({x: thisopts.x, y: thisopts.y}, 300, animate.easeIn);
+	// animate(nextGem).now({x: thisGem.style.x, y: thisGem.style.y}, 300, animate.easeIn);
+	// thisgem.updateOpts(thisopts);
+	// thatgem.updateOpts(thatopts);
+
+	// check valid swap
+	var checkflag = tick.call(that);
 	// if not, swap back
+	if (!checkflag) {
+		console.log("invalid, swap back...");
+		animate(thisGem).now({x: thisopts.x, y: thisopts.y}, 300, animate.easeIn);
+		animate(nextGem).now({x: nextopts.x, y: nextopts.y}, 300, animate.easeIn);
+	} else {
+		// update
+		thisgem.updateOpts(nextopts);
+		thatgem.updateOpts(thisopts);
+	}
+
+	return checkflag;
 }
 
 function swapGems (dx, dy, i, j) {
@@ -242,14 +264,15 @@ function swapGems (dx, dy, i, j) {
 	var nextX = direction[0] + i;
 	var nextY = direction[1] + j;
 	if (nextX >= 0 && nextX < dimW && nextY >= 0 && nextY < dimH) {
-		console.log("valid swapingggggggg");
 		var nextGem = matrix[nextX][nextY];
 		// animate swap
-		swap(thisGem, nextGem);
+		var checkflag = swap(thisGem, nextGem);
 		// update matrix
-		var temp = thisGem;
-		matrix[i][j] = nextGem;
-		matrix[nextX][nextY] = temp;
+		if (checkflag) {
+			var temp = thisGem;
+			matrix[i][j] = nextGem;
+			matrix[nextX][nextY] = temp;
+		}
 	}
 }
 
@@ -435,12 +458,13 @@ function tick () {
 		}
 	}
 
-	if (checkflag) {
-		setTimeout(function(){
-			console.log("tick again...");
-				tick.call(that);
-			}, 750);
-	}
+	// if (checkflag) {
+	// 	setTimeout(function(){
+	// 		console.log("tick again...");
+	// 			tick.call(that);
+	// 		}, 750);
+	// }
+	return checkflag;
 }
 
 /* Check for high-score and play the ending animation.
