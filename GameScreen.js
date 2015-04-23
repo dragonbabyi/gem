@@ -28,7 +28,8 @@ for (var i = 0; i < dimH; i++) {
 	var line = [];
 	matrix.push(line);
 };
-// var matrixUpdated = false;
+var tickflag1 = true, tickflag2 = true;
+var iteration = -1;
 var x_offset = 0;
 var y_offset = 290;
 var flag = false;   // no selection
@@ -120,7 +121,7 @@ exports = Class(View, function (supr) {
 		for (var h = 0; h < dimH; h++) {
 			for (var i = 0; i < dimW; i++) {
 				var gem = this.gemViewPool.obtainView();
-				var index = Math.round(Math.random() * 3.0);  //4.0
+				var index = Math.round(Math.random() * 4.0);
 				var tagx = index.toString();
 				matrix[h].push(gem);
 				var animator = animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + h * IMG_SIZE}, 500, animate.easeIn);
@@ -197,10 +198,23 @@ function start_game_flow () {
  * start the game
  */
 
+function keepTicking () {
+	var that = this;
+	var nIntervId = setInterval(function () {
+		tick.call(that);
+		if (!tickflag1 && !tickflag2) {
+			clearInterval(nIntervId);
+		}
+	}, 3000);
+	// if (!tickflag1 && !tickflag2) {
+	// 	clearInterval(nIntervId);
+	// }
+}
+
 function play_game () {
 	var that = this;
 	this._scoreboard.setText(score.toString());
-	tick.call(that, 0);
+	keepTicking.call(that);
 }
 
 /*
@@ -311,9 +325,9 @@ function swapGems (dx, dy, i, j) {
 		// animate swap
 		var checkflag = swap(thisGem, nextGem, i, j, nextX, nextY);
 
-		if (checkflag) {
-			tick.call(that);
-		}
+		// if (checkflag) {
+		// 	keepTicking.call(that);
+		// }
 	}
 }
 
@@ -322,28 +336,31 @@ function swapGems (dx, dy, i, j) {
  */
 function addNewGems (i, j, count, dir) {
 	console.log("add new gem...\n");
+	var that = this;
 	var animator;
 	if (dir === "horizontal") {
 		// generate new gems at (0, j - count + 1) ~ (0, j)
 		for (var m = j - count + 1; m <= j; m++) {
 			var newgem = this.gemViewPool.obtainView();
-			// var index = Math.round(Math.random() * 4.0);
-			var index = Math.round(4.0);
+			var index = Math.round(Math.random() * 4.0);
 			var tagx = index.toString();
 			matrix[0][m] = newgem;
-			newgem.updateOpts({
-				superview: this.backgroundView,
-				x: x_offset + m * IMG_SIZE,
-				y: y_offset,
-				opacity: 1.0,
-				scale: 1.0,
-				tag: tagx,
-				width: IMG_SIZE,
-				height: IMG_SIZE,
-				image: gemImg[index]
-			});
 
-			animator = animate(newgem).wait(5000).then({y: 0}, 0).then({y: y_offset}, 5000, animate.easeIn);
+			setTimeout((function () {
+				newgem.updateOpts({
+					superview: this.backgroundView,
+					x: x_offset + m * IMG_SIZE,
+					y: y_offset,
+					opacity: 1.0,
+					scale: 1.0,
+					tag: tagx,
+					width: IMG_SIZE,
+					height: IMG_SIZE,
+					image: gemImg[index]
+				});
+			}).call(that), 500);
+
+			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset}, 500, animate.easeIn);
 		};
 	}
 	if (dir === "vertical") {
@@ -353,22 +370,24 @@ function addNewGems (i, j, count, dir) {
 			var index = Math.round(Math.random() * 4.0);
 			var tagx = index.toString();
 			matrix[m][j] = newgem;
-			newgem.updateOpts({
-				superview: this.backgroundView,
-				x: x_offset + j * IMG_SIZE,
-				y: y_offset + m * IMG_SIZE,
-				opacity: 1.0,
-				scale: 1.0,
-				tag: tagx,
-				width: IMG_SIZE,
-				height: IMG_SIZE,
-				image: gemImg[index]
-			});
 
-			animator = animate(newgem).wait(5000).then({y: 0}, 0).then({y: y_offset + m * IMG_SIZE}, 5000, animate.easeIn);
+			setTimeout((function () {
+				newgem.updateOpts({
+					superview: this.backgroundView,
+					x: x_offset + j * IMG_SIZE,
+					y: y_offset + m * IMG_SIZE,
+					opacity: 1.0,
+					scale: 1.0,
+					tag: tagx,
+					width: IMG_SIZE,
+					height: IMG_SIZE,
+					image: gemImg[index]
+				});
+			}).call(that), 500);
+
+			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset + m * IMG_SIZE}, 500, animate.easeIn);
 		}
 	}
-
 }
 
 /*
@@ -387,11 +406,7 @@ function fillHole (i, j, count, dir) {
 				var theGem = matrix[row][col];
 				// update the gem
 				var gemy = theGem.style.y;
-				// setTimeout(function () {
-				// 	theGem.updateOpts({
-				// 		y: gemy + IMG_SIZE
-				// 	});
-				// }, 500);
+
 				setTimeout((function () {
 					theGem.updateOpts({
 						y: gemy + IMG_SIZE
@@ -400,28 +415,27 @@ function fillHole (i, j, count, dir) {
 
 				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 500, animate.easeIn);
 				matrix[row + 1][col] = theGem;
-				// matrixUpdated = true;
 			}
 		}
 	}
 	if (dir === "vertical") {
 		// update (0, j) ~ (i - count, j)
-		for (var row = i - count + 1; row >= 0; row--) {
+		for (var row = i - count; row >= 0; row--) {
 			var theGem = matrix[row][j];
 			var gemy = theGem.style.y;
-			setTimeout(function () {
+
+			setTimeout((function () {
 				theGem.updateOpts({
 					y: gemy + IMG_SIZE * count
 				});
-			}, 500);
+			}).call(that), 500);
 
 			animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 500, animate.easeIn);
-			matrix[row + count][col] = theGem;
-			// matrixUpdated = true;
+			matrix[row + count][j] = theGem;
 		}
 	}
 
-	// addNewGems.call(this, i, j, count, dir);
+	addNewGems.call(this, i, j, count, dir);
 }
 
 /*
@@ -432,24 +446,22 @@ function fillHole (i, j, count, dir) {
  * add new gems and fill the holes
  * keep check connected gems until no match exist
  */
-function tick (iteration) {
+function tick () {
 	var that = this;
+	// parent scope iteration
+	iteration++;
+	console.log(iteration);
 	var count = 1;
 	var tempArray = [];
-	console.log("Tick...\n");
-	var checkflag = false;
+	console.log("Tick...");
+	tickflag1 = false;
+	tickflag2 = false;
 	var viewpool = this.gemViewPool;
 	var animator;
-	// if (matrixUpdated == false) {
-	// 	setTimeout(function(){
-	// 		console.log("tick again...");
-	// 		tick.call(that, iteration + 1);
-	// 	}, 3050);
-	// 	return;
-	// }
 	// scan the matrix
 	if (Math.round(iteration % 2) == 0) {
 		// horizontal
+		console.log("horizontal");
 		for (var i = 0; i < dimH; i++) {
 			var currGem = matrix[i][0];
 			count = 1;
@@ -462,15 +474,13 @@ function tick (iteration) {
 				}
 				if (currGem.tag !== matrix[i][j].tag || j == dimW - 1) {
 					if (count >= 3) {
-						checkflag = true;
-
+						tickflag1 = true;
 						tempArray.forEach(function (view) {
 							animator = animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
 							.then(function () {
 								viewpool.releaseView(view);
 							});
 						});
-						// matrixUpdated = false;
 
 						//fill the holes
 						if (currGem.tag !== matrix[i][j].tag) {
@@ -492,6 +502,7 @@ function tick (iteration) {
 	}
 	else {
 		// vertical
+		console.log("vertical");
 		for (var j = 0; j < dimW; j++) {
 			var currGem = matrix[0][j];
 			count = 1;
@@ -504,15 +515,13 @@ function tick (iteration) {
 				}
 				if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
 					if (count >= 3) {
-						checkflag = true;
-						console.log(checkflag);
+						tickflag1 = true;
 						tempArray.forEach(function (view) {
 							animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
 							.then(bind(this, function() {
 								viewpool.releaseView(view);
 							}));
 						});
-						// matrixUpdated = false;
 
 						// fill the holes
 						if (currGem.tag !== matrix[i][j].tag) {
@@ -531,12 +540,7 @@ function tick (iteration) {
 		}
 	}
 
-	// if (checkflag || Math.round(iteration % 2) == 0) {
-	// 	setTimeout(function(){
-	// 		console.log("tick again...");
-	// 			tick.call(that, iteration + 1);
-	// 		}, 3050);
-	// }
+	return false;
 }
 
 /* Check for high-score and play the ending animation.
