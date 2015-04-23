@@ -1,6 +1,9 @@
 /*
- * The game screen is a singleton view that consists of
- * a scoreboard and a collection of molehills.
+ * The game screen 
+ * consists of
+ * a background
+ * a scoreboard and a move counting down
+ * grid of gems
  */
 
 import animate;
@@ -40,7 +43,7 @@ var flag = false,   // no selection
 var score = 0,
 	high_score = 1,
 	game_on = false,
-	moveCountdown = 2,
+	moveCountdown = 5,
 	lang = 'en';
 
 /* The GameScreen view is a child of the main application.
@@ -143,7 +146,6 @@ exports = Class(View, function (supr) {
 					if (!flag) {
 						flag = true;
 					}
-					// console.log(this.getTag() + "   selectedddd");
 				});
 				gem.on("InputMove", function (event, pt) {
 					var pos = {x: this.style.x, y: this.style.y};
@@ -161,7 +163,6 @@ exports = Class(View, function (supr) {
 					}
 				});
 				gem.on("InputSelect", function (event, pt){
-					// console.log("unselect");
 					flag = false;
 					moveonceflag = false;
 				});
@@ -181,7 +182,7 @@ exports = Class(View, function (supr) {
 			horizontalAlign: 'center',
 		});
 
-		this._endscreen = new ImageView({
+		this._endheader = new ImageView({
 			superview: this.backgroundView,
 			visible: false,
 			x: 125,
@@ -227,7 +228,7 @@ function keepTicking () {
 	var that = this;
 	var nIntervId = setInterval(function () {
 		tick.call(that);
-		console.log(tickflag1, tickflag2);
+		// console.log(tickflag1, tickflag2);
 		if (!tickflag1 && !tickflag2) {
 			clearInterval(nIntervId);
 		}
@@ -235,6 +236,10 @@ function keepTicking () {
 
 }
 
+/*
+ * Keep updating everything.
+ * And control when the game ends.
+ */
 function play_game () {
 	var that = this;
 	var i = setInterval(update_score.bind(this), 100),
@@ -253,10 +258,16 @@ function play_game () {
 	}, 100);
 }
 
+/*
+ * Update the moves left.
+ */
 function update_countdown () {
 	this._countdown.setText("Moves left: " + moveCountdown.toString());
 }
 
+/*
+ * Update the score.
+ */
 function update_score () {
 	this._scoreboard.setText("Score: " + score.toString());
 }
@@ -340,10 +351,10 @@ function swap (thisGem, nextGem, thisX, thisY, nextX, nextY) {
  */
 function swapGems (dx, dy, i, j) {
 	var that = this;
-	console.log("swapGems...");
+	// console.log("swapGems...");
 	var direction;
 	var tanTheta = dy / dx;
-	// console.log(dx, dy);
+
 	// check direction
 	if (Math.abs(dx) < 0.1 || Math.abs(tanTheta) > 1) {
 		if (dy > 0) {
@@ -358,16 +369,12 @@ function swapGems (dx, dy, i, j) {
 	else {
 		direction = [0, -1];
 	}
-	// console.log(direction);
 
 	var thisGem = matrix[i][j];
 	var nextX = direction[0] + i;
 	var nextY = direction[1] + j;
 	if (nextX >= 0 && nextX < dimW && nextY >= 0 && nextY < dimH) {
 		var nextGem = matrix[nextX][nextY];
-		if (nextGem == undefined) {
-			console.log("Next gem undefined.\n" + thisGem);
-		}
 		// animate swap
 		var checkflag = swap(thisGem, nextGem, i, j, nextX, nextY);
 
@@ -383,7 +390,7 @@ function swapGems (dx, dy, i, j) {
  * Add new gems after removing the matches.
  */
 function addNewGems (i, j, count, dir) {
-	console.log("add new gem...\n");
+	// console.log("add new gem...\n");
 	var that = this;
 	var animator;
 	if (dir === "horizontal") {
@@ -444,7 +451,7 @@ function addNewGems (i, j, count, dir) {
  */
 function fillHole (i, j, count, dir) {
 	var that = this;
-	console.log("Fill holes...\n");
+	// console.log("Fill holes...\n");
 	var animator;
 	// update the matrix and gems
 	if (dir === "horizontal") {
@@ -487,7 +494,6 @@ function fillHole (i, j, count, dir) {
 }
 
 /*
- * Tick every time need to update
  * check vertical or horizontal  connected gems and remove
  * add new gems and fill the holes
  */
@@ -498,14 +504,14 @@ function tick () {
 
 	var count = 1;
 	var tempArray = [];
-	console.log("Tick...");
+	// console.log("Tick...");
 
 	var viewpool = this.gemViewPool;
 	var animator;
 	// scan the matrix
 	if (Math.round(iteration % 2) == 0) {
 		// horizontal
-		console.log("horizontal");
+		// console.log("horizontal");
 		tickflag1 = true;
 		for (var i = 0; i < dimH; i++) {
 			var currGem = matrix[i][0];
@@ -552,7 +558,7 @@ function tick () {
 	}
 	else {
 		// vertical
-		console.log("vertical");
+		// console.log("vertical");
 		tickflag2 = true;
 		for (var j = 0; j < dimW; j++) {
 			var currGem = matrix[0][j];
@@ -602,7 +608,7 @@ function tick () {
  * screen so we may play again.
  */
 function end_game_flow () {
-	console.log("end...");
+	// console.log("end...");
 	// block all the event to gems
 	this.backgroundView.updateOpts({
 		blockEvents: true
@@ -612,15 +618,15 @@ function end_game_flow () {
 		visible: false
 	});
 	// show end screen
-	this._endscreen.updateOpts({
+	this._endheader.updateOpts({
 		visible: true,
 		canHandleEvents: true
 	});
-	var animator = animate(this._endscreen).wait(800).then({y: 0}, 100, animate.easeIn).then({y: 35}, 1000, animate.easeIn);
+	var animator = animate(this._endheader).wait(800).then({y: 0}, 100, animate.easeIn).then({y: 35}, 1000, animate.easeIn);
 
 	// show score
 	var scoreText = new TextView({
-		superview: this._endscreen,
+		superview: this._endheader,
 		x: 0,
 		y: 35,   // endscreen animate end point
 		width: 350,
@@ -651,28 +657,31 @@ function emit_endgame_event () {
 function reset_game () {
 	score = 0;
 	moveCountdown = 5;
+	// resume the event listener to gems
+	this.backgroundView.updateOpts({
+		blockEvents: false
+	});
 
 	this._scoreboard.updateOpts({
 		visible: true,
 		text: ""
 	});
-	this._countdown.updateOpts({
-		visible: false,
-	});
-	this._endscreen.updateOpts({
+	// hide the header
+	this._endheader.updateOpts({
 		x: 125,
 		y: 0,
 		visible: false,
 		canHandleEvents: false
 	});
+	// remove what's on the header broad
+	this._endheader.removeAllSubviews();
 }
 
 var localized_strings = {
 	en: {
 		READY: "Ready ...",
 		SET: "Set ...",
-		GO: "GO!",
-		HIGH_SCORE: "That's a new high score!"
+		GO: "GO!"
 	}
 };
 
