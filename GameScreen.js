@@ -202,13 +202,11 @@ function keepTicking () {
 	var that = this;
 	var nIntervId = setInterval(function () {
 		tick.call(that);
+		console.log(tickflag1, tickflag2);
 		if (!tickflag1 && !tickflag2) {
 			clearInterval(nIntervId);
 		}
-	}, 3000);
-	// if (!tickflag1 && !tickflag2) {
-	// 	clearInterval(nIntervId);
-	// }
+	}, 2000);
 }
 
 function play_game () {
@@ -325,9 +323,11 @@ function swapGems (dx, dy, i, j) {
 		// animate swap
 		var checkflag = swap(thisGem, nextGem, i, j, nextX, nextY);
 
-		// if (checkflag) {
-		// 	keepTicking.call(that);
-		// }
+		if (checkflag) {
+			tickflag1 = true;
+			tickflag2 = true;
+			keepTicking.call(that);
+		}
 	}
 }
 
@@ -440,28 +440,25 @@ function fillHole (i, j, count, dir) {
 
 /*
  * Tick every time need to update
- * check vertical connected gems and remove
+ * check vertical or horizontal  connected gems and remove
  * add new gems and fill the holes
- * check horizontal connected gems and remove
- * add new gems and fill the holes
- * keep check connected gems until no match exist
  */
 function tick () {
 	var that = this;
 	// parent scope iteration
-	iteration++;
+	iteration = (iteration + 1) % 2;
 	console.log(iteration);
 	var count = 1;
 	var tempArray = [];
 	console.log("Tick...");
-	tickflag1 = false;
-	tickflag2 = false;
+
 	var viewpool = this.gemViewPool;
 	var animator;
 	// scan the matrix
 	if (Math.round(iteration % 2) == 0) {
 		// horizontal
 		console.log("horizontal");
+		tickflag1 = true;
 		for (var i = 0; i < dimH; i++) {
 			var currGem = matrix[i][0];
 			count = 1;
@@ -474,7 +471,7 @@ function tick () {
 				}
 				if (currGem.tag !== matrix[i][j].tag || j == dimW - 1) {
 					if (count >= 3) {
-						tickflag1 = true;
+
 						tempArray.forEach(function (view) {
 							animator = animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
 							.then(function () {
@@ -499,10 +496,13 @@ function tick () {
 				}
 			}
 		}
+
+		tickflag1 = false;
 	}
 	else {
 		// vertical
 		console.log("vertical");
+		tickflag2 = true;
 		for (var j = 0; j < dimW; j++) {
 			var currGem = matrix[0][j];
 			count = 1;
@@ -515,7 +515,7 @@ function tick () {
 				}
 				if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
 					if (count >= 3) {
-						tickflag1 = true;
+
 						tempArray.forEach(function (view) {
 							animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
 							.then(bind(this, function() {
@@ -538,9 +538,9 @@ function tick () {
 				}
 			}
 		}
-	}
 
-	return false;
+		tickflag2 = false;
+	}
 }
 
 /* Check for high-score and play the ending animation.
