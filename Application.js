@@ -24,8 +24,7 @@ exports = Class(GC.Application, function () {
 
     this.view.style.backgroundColor = '#008a42';
 
-    // Create a stackview of size 320x480, then scale it to fit horizontally
-    // Add a new StackView to the root of the scene graph
+    // Create a stackview
     var rootView = new StackView({
       superview: this,
       x: 0,

@@ -40,7 +40,7 @@ var flag = false,   // no selection
 var score = 0,
 	high_score = 1,
 	game_on = false,
-	moveCountdown = 5,
+	moveCountdown = 2,
 	lang = 'en';
 
 /* The GameScreen view is a child of the main application.
@@ -176,7 +176,6 @@ exports = Class(View, function (supr) {
 			y: 866,
 			width: 576,
 			height: 150,
-			text: moveCountdown.toString(),
 			size: 38,
 			verticalAlign: 'middle',
 			horizontalAlign: 'center',
@@ -186,7 +185,7 @@ exports = Class(View, function (supr) {
 			superview: this.backgroundView,
 			visible: false,
 			x: 125,
-			y: 175,   // animate start point
+			y: 0,   // animate start point
 			width: 350,
 			height: 233,
 			image: "resources/images/ui/header.png",
@@ -226,7 +225,7 @@ function start_game_flow () {
 
 function keepTicking () {
 	var that = this;
-	nIntervId = setInterval(function () {
+	var nIntervId = setInterval(function () {
 		tick.call(that);
 		console.log(tickflag1, tickflag2);
 		if (!tickflag1 && !tickflag2) {
@@ -238,22 +237,20 @@ function keepTicking () {
 
 function play_game () {
 	var that = this;
-	var i = setInterval(update_score.bind(this), 1000),
-		j = setInterval(update_countdown.bind(this), 1000);
+	var i = setInterval(update_score.bind(this), 100),
+		j = setInterval(update_countdown.bind(this), 100);
 
-	var nIntervId;
 	keepTicking.call(that);
 
 	var gameInterval = setInterval(function () {
 		if (moveCountdown == 0) { // end of game
 			game_on = false;
-			end_game_flow.bind(this);
+			end_game_flow.call(that);
 			clearInterval(i);
 			clearInterval(j);
-			clearInterval(nIntervId);
 			clearInterval(gameInterval);
 		}
-	}, 1000);
+	}, 100);
 }
 
 function update_countdown () {
@@ -610,22 +607,26 @@ function end_game_flow () {
 	this.backgroundView.updateOpts({
 		blockEvents: true
 	});
+	// disable scoreboard
+	this._scoreboard.updateOpts({
+		visible: false
+	});
 	// show end screen
 	this._endscreen.updateOpts({
 		visible: true,
 		canHandleEvents: true
 	});
-	var animator = animate(this._endscreen).now({y: 175}, 100, animate.easeIn).then({y: 575}, 500, animate.easeIn);
+	var animator = animate(this._endscreen).wait(800).then({y: 0}, 100, animate.easeIn).then({y: 35}, 1000, animate.easeIn);
 
 	// show score
 	var scoreText = new TextView({
 		superview: this._endscreen,
-		x: 125,
-		y: 575,   // endscreen animate end point
+		x: 0,
+		y: 35,   // endscreen animate end point
 		width: 350,
 		height: 233,
 		autoSize: true,
-		text: score.toString + "Play again?",
+		text: "You achieved " + score.toString(),
 		size: 38,
 		verticalAlign: 'middle',
 		horizontalAlign: 'center',
@@ -652,10 +653,17 @@ function reset_game () {
 	moveCountdown = 5;
 
 	this._scoreboard.updateOpts({
+		visible: true,
 		text: ""
 	});
 	this._countdown.updateOpts({
 		visible: false,
+	});
+	this._endscreen.updateOpts({
+		x: 125,
+		y: 0,
+		visible: false,
+		canHandleEvents: false
 	});
 }
 
