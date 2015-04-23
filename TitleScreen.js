@@ -18,7 +18,7 @@ exports = Class(ImageView, function (supr) {
 		opts = merge(opts, {
 			x: 0,
 			y: 0,
-			image: "resources/images/title_screen.png"
+			image: "resources/images/ui/title_screen.png"
 		});
 
 		supr(this, 'init', [opts]);

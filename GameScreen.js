@@ -1,5 +1,5 @@
 /*
- * The game screen 
+ * The game screen
  * consists of
  * a background
  * a scoreboard and a move counting down
@@ -24,14 +24,15 @@ var purpleGem = new Image({url: "resources/images/gems/gem_01.png"}),
 	greenGem  = new Image({url: "resources/images/gems/gem_05.png"}),
 	gemImg = [purpleGem, orangeGem, blueGem, redGem, greenGem];
 
-var IMG_SIZE = 96;
-var matrix = [];
-var dimH = 6,
+var IMG_SIZE = 96,
+	matrix = [],
+	dimH = 6,
 	dimW = 6;
 for (var i = 0; i < dimH; i++) {
 	var line = [];
 	matrix.push(line);
 };
+
 var tickflag1 = true,
 	tickflag2 = true;
 var iteration = -1;
@@ -130,7 +131,8 @@ exports = Class(View, function (supr) {
 				var index = Math.round(Math.random() * 4.0);
 				var tagx = index.toString();
 				matrix[h].push(gem);
-				var animator = animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + h * IMG_SIZE}, 500, animate.easeIn);
+
+				animate(gem).now({y: 0}, 0, animate.easeIn).then({y: y_offset + h * IMG_SIZE}, 500, animate.easeIn);
 				gem.updateOpts({
 					superview: this.backgroundView,
 					x: x_offset + i * IMG_SIZE,
@@ -228,7 +230,7 @@ function keepTicking () {
 	var that = this;
 	var nIntervId = setInterval(function () {
 		tick.call(that);
-		// console.log(tickflag1, tickflag2);
+
 		if (!tickflag1 && !tickflag2) {
 			clearInterval(nIntervId);
 		}
@@ -350,8 +352,9 @@ function swap (thisGem, nextGem, thisX, thisY, nextX, nextY) {
  * Swap gems. Check swap direction.
  */
 function swapGems (dx, dy, i, j) {
+
 	var that = this;
-	// console.log("swapGems...");
+
 	var direction;
 	var tanTheta = dy / dx;
 
@@ -390,9 +393,9 @@ function swapGems (dx, dy, i, j) {
  * Add new gems after removing the matches.
  */
 function addNewGems (i, j, count, dir) {
-	// console.log("add new gem...\n");
+
 	var that = this;
-	var animator;
+
 	if (dir === "horizontal") {
 		// generate new gems at (0, j - count + 1) ~ (0, j)
 		for (var m = j - count + 1; m <= j; m++) {
@@ -415,7 +418,7 @@ function addNewGems (i, j, count, dir) {
 				});
 			}).call(that), 350);
 
-			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset}, 350, animate.easeIn);
+			animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset}, 350, animate.easeIn);
 		};
 	}
 	if (dir === "vertical") {
@@ -440,7 +443,7 @@ function addNewGems (i, j, count, dir) {
 				});
 			}).call(that), 350);
 
-			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset + m * IMG_SIZE}, 350, animate.easeIn);
+			animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset + m * IMG_SIZE}, 350, animate.easeIn);
 		}
 	}
 }
@@ -450,9 +453,9 @@ function addNewGems (i, j, count, dir) {
  * add new gems at the top
  */
 function fillHole (i, j, count, dir) {
+
 	var that = this;
-	// console.log("Fill holes...\n");
-	var animator;
+
 	// update the matrix and gems
 	if (dir === "horizontal") {
 		// update (0~i, j - count + 1) ~ (0~i, j), move down one step
@@ -468,7 +471,7 @@ function fillHole (i, j, count, dir) {
 					});
 				}).call(that), 350);
 
-				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 350, animate.easeIn);
+				animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 350, animate.easeIn);
 				matrix[row + 1][col] = theGem;
 			}
 		}
@@ -485,7 +488,7 @@ function fillHole (i, j, count, dir) {
 				});
 			}).call(that), 450);
 
-			animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 450, animate.easeIn);
+			animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 450, animate.easeIn);
 			matrix[row + count][j] = theGem;
 		}
 	}
@@ -498,8 +501,9 @@ function fillHole (i, j, count, dir) {
  * add new gems and fill the holes
  */
 function tick () {
+
 	var that = this;
-	// parent scope iteration
+
 	iteration = (iteration + 1) % 2;
 
 	var count = 1;
@@ -507,7 +511,7 @@ function tick () {
 	// console.log("Tick...");
 
 	var viewpool = this.gemViewPool;
-	var animator;
+
 	// scan the matrix
 	if (Math.round(iteration % 2) == 0) {
 		// horizontal
@@ -530,7 +534,7 @@ function tick () {
 						this.sound.play('effect');
 
 						tempArray.forEach(function (view) {
-							animator = animate(view).wait(50).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 300)
+							animate(view).wait(50).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 300)
 							.then(function () {
 								viewpool.releaseView(view);
 							});
@@ -622,7 +626,7 @@ function end_game_flow () {
 		visible: true,
 		canHandleEvents: true
 	});
-	var animator = animate(this._endheader).wait(800).then({y: 0}, 100, animate.easeIn).then({y: 35}, 1000, animate.easeIn);
+	animate(this._endheader).wait(800).then({y: 0}, 100, animate.easeIn).then({y: 35}, 1000, animate.easeIn);
 
 	// show score
 	var scoreText = new TextView({
