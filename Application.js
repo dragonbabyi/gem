@@ -36,26 +36,26 @@ exports = Class(GC.Application, function () {
       scale: device.width / 576
     });
 
-    // rootView.push(titlescreen);
+    rootView.push(titlescreen);
 
-    // var sound = soundcontroller.getSound();
+    var sound = soundcontroller.getSound();
 
     /* Listen for an event dispatched by the title screen when
      * the start button has been pressed. Hide the title screen,
      * show the game screen, then dispatch a custom event to the
      * game screen to start the game.
      */
-    // titlescreen.on('titlescreen:start', function () {
-    //   sound.play('levelmusic');
+    titlescreen.on('titlescreen:start', function () {
+      sound.play('levelmusic');
       rootView.push(gamescreen);
       gamescreen.emit('app:start');
-    // });
+    });
 
     /* When the game screen has signalled that the game is over,
      * show the title screen so that the user may play the game again.
      */
       gamescreen.on('gamescreen:end', function () {
-      // sound.stop('levelmusic');
+      sound.stop('levelmusic');
       rootView.pop();
     });
   };

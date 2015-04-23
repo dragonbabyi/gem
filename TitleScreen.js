@@ -33,10 +33,10 @@ exports = Class(ImageView, function (supr) {
 		 */
 		var startbutton = new View({
 			superview: this,
-			x: 58,
-			y: 313,
-			width: 200,
-			height: 100
+			x: 125,
+			y: 675,
+			width: 350,
+			height: 180
 		});
 
 		/* Listening for a touch or click event, and will dispatch a

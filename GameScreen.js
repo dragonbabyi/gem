@@ -10,6 +10,7 @@ import ui.resource.Image as Image;
 import ui.TextView as TextView;
 import ui.ViewPool as ViewPool;
 import event.input.InputEvent as InputEvent;
+import src.soundcontroller as soundcontroller;
 
 /* Some game constants.
  */
@@ -22,26 +23,25 @@ var purpleGem = new Image({url: "resources/images/gems/gem_01.png"}),
 
 var IMG_SIZE = 96;
 var matrix = [];
-var dimH = 7;
-var dimW = 6;
+var dimH = 6,
+	dimW = 6;
 for (var i = 0; i < dimH; i++) {
 	var line = [];
 	matrix.push(line);
 };
-var tickflag1 = true, tickflag2 = true;
+var tickflag1 = true,
+	tickflag2 = true;
 var iteration = -1;
-var x_offset = 0;
-var y_offset = 290;
-var flag = false;   // no selection
-var moveonceflag = false;
+var x_offset = 0,
+	y_offset = 290;
+var flag = false,   // no selection
+	moveonceflag = false;
 
 var score = 0,
-		high_score = 1,
-		hit_value = 1,
-		game_on = false,
-		game_length = 20000, //20 secs
-		countdown_secs = game_length / 1000,
-		lang = 'en';
+	high_score = 1,
+	game_on = false,
+	moveCountdown = 5,
+	lang = 'en';
 
 /* The GameScreen view is a child of the main application.
  * By adding the scoreboard and the molehills as it's children,
@@ -76,7 +76,8 @@ exports = Class(View, function (supr) {
 			y: 0,
 			width: this.style.width,
 			height: this.style.height,
-			image: "resources/images/ui/background.png"
+			image: "resources/images/ui/background.png",
+			canHandleEvents: false
 		});
 
 		/* The scoreboard displays the "ready, set, go" message,
@@ -90,24 +91,26 @@ exports = Class(View, function (supr) {
 			y: 0,
 			width: 576,
 			height: 150,
-			// image: "resources/images/ui/header.png",
 			autoSize: false,
 			size: 38,
 			verticalAlign: 'middle',
 			horizontalAlign: 'center',
-			wrap: false,
-			// color: '#FFFFFF'
+			canHandleEvents: false
 		});
 
 		this.style.width = 576;
 		this.style.height = 1024;
 
-		// // // ViewPool
+		// sound
+		this.sound = soundcontroller.getSound();
+
+		// ViewPool
 		this.gemViewPool = new ViewPool({
 			ctor: ImageView,
 			initCount: dimH * dimW,
 			initOpts: {
-				parent: this,
+				// parent: this,
+				parent: this.backgroundView,
 				x: 0,
 				y: 0,
 				width: IMG_SIZE,
@@ -165,7 +168,30 @@ exports = Class(View, function (supr) {
 			}
 		}
 
-		// matrixUpdated = true;
+		//Set up move countdown
+		this._countdown = new TextView({
+			superview: this.backgroundView,
+			visible: true,
+			x: 0,
+			y: 866,
+			width: 576,
+			height: 150,
+			text: moveCountdown.toString(),
+			size: 38,
+			verticalAlign: 'middle',
+			horizontalAlign: 'center',
+		});
+
+		this._endscreen = new ImageView({
+			superview: this.backgroundView,
+			visible: false,
+			x: 125,
+			y: 175,   // animate start point
+			width: 350,
+			height: 233,
+			image: "resources/images/ui/header.png",
+			canHandleEvents: false
+		});
 	};
 });
 
@@ -200,19 +226,42 @@ function start_game_flow () {
 
 function keepTicking () {
 	var that = this;
-	var nIntervId = setInterval(function () {
+	nIntervId = setInterval(function () {
 		tick.call(that);
 		console.log(tickflag1, tickflag2);
 		if (!tickflag1 && !tickflag2) {
 			clearInterval(nIntervId);
 		}
-	}, 2000);
+	}, 750);
+
 }
 
 function play_game () {
 	var that = this;
-	this._scoreboard.setText(score.toString());
+	var i = setInterval(update_score.bind(this), 1000),
+		j = setInterval(update_countdown.bind(this), 1000);
+
+	var nIntervId;
 	keepTicking.call(that);
+
+	var gameInterval = setInterval(function () {
+		if (moveCountdown == 0) { // end of game
+			game_on = false;
+			end_game_flow.bind(this);
+			clearInterval(i);
+			clearInterval(j);
+			clearInterval(nIntervId);
+			clearInterval(gameInterval);
+		}
+	}, 1000);
+}
+
+function update_countdown () {
+	this._countdown.setText("Moves left: " + moveCountdown.toString());
+}
+
+function update_score () {
+	this._scoreboard.setText("Score: " + score.toString());
 }
 
 /*
@@ -274,14 +323,16 @@ function swap (thisGem, nextGem, thisX, thisY, nextX, nextY) {
 		animate(thisGem).now({x: nextopts.x + IMG_SIZE / 10, y: nextopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 300).then({x: thisopts.x, y: thisopts.y, scale: 1.0, opacity: 1.0}, 300, animate.easeInQuart);
 		animate(nextGem).now({x: thisopts.x + IMG_SIZE / 10, y: thisopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 300).then({x: nextopts.x, y: nextopts.y, scale: 1.0, opacity: 1.0}, 300, animate.easeInQuart);
 	} else {
+		// update moves count down
+		moveCountdown--;
 		// update the gems
 		thisGem.updateOpts(nextopts);
 		nextGem.updateOpts(thisopts);
 
 		console.log("swap");
 		var animGroup = animate.getGroup('Swap');
-		animate(thisGem, 'Swap').now({x: thisopts.x + IMG_SIZE / 10, y: thisopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 10).then({x: nextopts.x, y: nextopts.y, scale: 1.0, opacity: 1.0}, 1000, animate.easeInQuart);
-		animate(nextGem, 'Swap').now({x: nextopts.x + IMG_SIZE / 10, y: nextopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 10).then({x: thisopts.x, y: thisopts.y, scale: 1.0, opacity: 1.0}, 1000, animate.easeInQuart);
+		animate(thisGem, 'Swap').now({x: thisopts.x + IMG_SIZE / 10, y: thisopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 300).then({x: nextopts.x, y: nextopts.y, scale: 1.0, opacity: 1.0}, 300, animate.easeInQuart);
+		animate(nextGem, 'Swap').now({x: nextopts.x + IMG_SIZE / 10, y: nextopts.y + IMG_SIZE / 10, scale: 0.8, opacity: 0.8}, 300).then({x: thisopts.x, y: thisopts.y, scale: 1.0, opacity: 1.0}, 300, animate.easeInQuart);
 	}
 
 	return checkflag;
@@ -358,9 +409,9 @@ function addNewGems (i, j, count, dir) {
 					height: IMG_SIZE,
 					image: gemImg[index]
 				});
-			}).call(that), 500);
+			}).call(that), 350);
 
-			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset}, 500, animate.easeIn);
+			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset}, 350, animate.easeIn);
 		};
 	}
 	if (dir === "vertical") {
@@ -383,9 +434,9 @@ function addNewGems (i, j, count, dir) {
 					height: IMG_SIZE,
 					image: gemImg[index]
 				});
-			}).call(that), 500);
+			}).call(that), 350);
 
-			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset + m * IMG_SIZE}, 500, animate.easeIn);
+			animator = animate(newgem).now({y: y_offset - IMG_SIZE}, 0).then({y: y_offset + m * IMG_SIZE}, 350, animate.easeIn);
 		}
 	}
 }
@@ -411,9 +462,9 @@ function fillHole (i, j, count, dir) {
 					theGem.updateOpts({
 						y: gemy + IMG_SIZE
 					});
-				}).call(that), 500);
+				}).call(that), 350);
 
-				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 500, animate.easeIn);
+				animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 350, animate.easeIn);
 				matrix[row + 1][col] = theGem;
 			}
 		}
@@ -428,9 +479,9 @@ function fillHole (i, j, count, dir) {
 				theGem.updateOpts({
 					y: gemy + IMG_SIZE * count
 				});
-			}).call(that), 500);
+			}).call(that), 450);
 
-			animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 500, animate.easeIn);
+			animator = animate(theGem).now({y: gemy}, 0, animate.easeIn).then({y: theGem.style.y}, 450, animate.easeIn);
 			matrix[row + count][j] = theGem;
 		}
 	}
@@ -447,7 +498,7 @@ function tick () {
 	var that = this;
 	// parent scope iteration
 	iteration = (iteration + 1) % 2;
-	console.log(iteration);
+
 	var count = 1;
 	var tempArray = [];
 	console.log("Tick...");
@@ -471,9 +522,12 @@ function tick () {
 				}
 				if (currGem.tag !== matrix[i][j].tag || j == dimW - 1) {
 					if (count >= 3) {
+						// update score
+						score += count * 10;
+						this.sound.play('effect');
 
 						tempArray.forEach(function (view) {
-							animator = animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
+							animator = animate(view).wait(50).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 300)
 							.then(function () {
 								viewpool.releaseView(view);
 							});
@@ -515,9 +569,12 @@ function tick () {
 				}
 				if (currGem.tag !== matrix[i][j].tag || i == dimH - 1) {
 					if (count >= 3) {
+						// update score
+						score += count * 10;
+						this.sound.play('effect');
 
 						tempArray.forEach(function (view) {
-							animate(view).wait(100).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 400)
+							animate(view).wait(50).then({x: view.style.x + IMG_SIZE/2, y: view.style.y + IMG_SIZE/2, opacity: 0.1, scale: 0.2}, 300)
 							.then(bind(this, function() {
 								viewpool.releaseView(view);
 							}));
@@ -548,36 +605,35 @@ function tick () {
  * screen so we may play again.
  */
 function end_game_flow () {
-	// var isHighScore = (score > high_score),
-	// 		end_msg = get_end_message(score, isHighScore);
+	console.log("end...");
+	// block all the event to gems
+	this.backgroundView.updateOpts({
+		blockEvents: true
+	});
+	// show end screen
+	this._endscreen.updateOpts({
+		visible: true,
+		canHandleEvents: true
+	});
+	var animator = animate(this._endscreen).now({y: 175}, 100, animate.easeIn).then({y: 575}, 500, animate.easeIn);
 
-	// this._countdown.setText(''); //clear countdown text
-	// //resize scoreboard text to fit everything
-	// this._scoreboard.updateOpts({
-	// 	text: '',
-	// 	x: 10,
-	// 	fontSize: 17,
-	// 	verticalAlign: 'top',
-	// 	textAlign: 'left',
-	// 	multiline: true
-	// });
-
-	//check for high-score and do appropriate animation
-	// if (isHighScore) {
-	// 	high_score = score;
-	// 	this._molehills.forEach(function (molehill) {
-	// 		molehill.endAnimation();
-	// 	});
-	// } else {
-	// 	var i = (this._molehills.length-1) / 2 | 0; //just center mole
-	// 	this._molehills[i].endAnimation(true);
-	// }
-
-	// this._scoreboard.setText(end_msg);
-
+	// show score
+	var scoreText = new TextView({
+		superview: this._endscreen,
+		x: 125,
+		y: 575,   // endscreen animate end point
+		width: 350,
+		height: 233,
+		autoSize: true,
+		text: score.toString + "Play again?",
+		size: 38,
+		verticalAlign: 'middle',
+		horizontalAlign: 'center',
+		canHandleEvents: false
+	});
 	// //slight delay before allowing a tap reset
 	setTimeout(emit_endgame_event.bind(this), 2000);
-	// console.log('end game flow.. \n');
+	console.log('end game flow.. \n');
 }
 
 /* Tell the main app to switch back to the title screen.
@@ -585,73 +641,32 @@ function end_game_flow () {
 function emit_endgame_event () {
 	this.once('InputSelect', function () {
 		this.emit('gamescreen:end');
-		// reset_game.call(this);
+		reset_game.call(this);
 	});
 }
 
 /* Reset game counters and assets.
  */
-// function reset_game () {
-// 	score = 0;
-// 	countdown_secs = game_length / 1000;
-// 	this._scoreboard.setText('');
-// 	this._molehills.forEach(function (molehill) {
-// 		molehill.resetMole();
-// 	});
-// 	this._scoreboard.updateOpts({
-// 		x: 0,
-// 		fontSize: 38,
-// 		verticalAlign: 'middle',
-// 		textAlign: 'center',
-// 		multiline: false
-// 	});
-// 	this._countdown.updateOpts({
-// 		visible: false,
-// 		color: '#fff'
-// 	});
-// }
+function reset_game () {
+	score = 0;
+	moveCountdown = 5;
 
-/*
- * Strings
- */
-
-// function get_end_message (score, isHighScore) {
-// 	var moles = (score === 1) ? text.MOLE : text.MOLES,
-// 			end_msg = text.END_MSG_START + ' ' + score + ' ' + moles + '.\n';
-
-// 	if (isHighScore) {
-// 		end_msg += text.HIGH_SCORE + '\n';
-// 	} else {
-// 		//random taunt
-// 		var i = (Math.random() * text.taunts.length) | 0;
-// 		end_msg += text.taunts[i] + '\n';
-// 	}
-// 	return (end_msg += text.END_MSG_END);
-// }
+	this._scoreboard.updateOpts({
+		text: ""
+	});
+	this._countdown.updateOpts({
+		visible: false,
+	});
+}
 
 var localized_strings = {
 	en: {
 		READY: "Ready ...",
 		SET: "Set ...",
 		GO: "GO!",
-		END_MSG_START: "You whacked",
-		END_MSG_END: "Tap to play again",
 		HIGH_SCORE: "That's a new high score!"
 	}
 };
-
-// localized_strings['en'].taunts = [
-// 	"Welcome to Loserville, population: you.", //max length
-// 	"You're an embarrassment!",
-// 	"You'll never catch me!",
-// 	"Your days are numbered, human.",
-// 	"Don't quit your day job.",
-// 	"Just press the screen, it's not hard.",
-// 	"You might be the worst I've seen.",
-// 	"You're just wasting my time.",
-// 	"Don't hate the playa, hate the game.",
-// 	"Make like a tree, and get out of here!"
-// ];
 
 // //object of strings used in game
 var text = localized_strings[lang.toLowerCase()];
